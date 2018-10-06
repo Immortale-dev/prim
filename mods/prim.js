@@ -1,6 +1,6 @@
 
 
-(function(){    
+//(function(){    
 
     ///////////////////////////////////////////
     //////@@@@/////@@/////@@@@//@@///@@@///////
@@ -203,12 +203,22 @@
         /**
          *
          */
+        this.resize;
+        
+        /**
+         *
+         */
         this._cycle;
         
         /**
          *
          */
         this._render;
+        
+        /**
+         *
+         */
+        this._clear;
         
         /**
          *
@@ -238,6 +248,21 @@
         /**
          *
          */
+        this._defineShaders;
+        
+        /**
+         *
+         */
+        this._initGL;
+        
+        /**
+         *
+         */
+        this._setCanvasSize;
+        
+        /**
+         *
+         */
         this.__binarySearch;
         
         /**
@@ -253,6 +278,8 @@
         //////////////////////
         
         this.super.constructor.call(this, options);
+        this._defineShaders();
+        this._initGL();
     }
     inherit(Prim, Basic);
     
@@ -290,18 +317,38 @@
         return obj;
     }
     
+    proto.resize = function(width,height){
+        this.width = width;
+        this.height = height;
+        this._setCanvasSize();
+    }
+    
     proto._cycle = function(tm){
         this.tick();
-        this.render();
+        this._render();
         this.__time = tm;
-        this._animation = requestAnimateionFrame(()=>{
+        this._animation = requestAnimationFrame(()=>{
             this._cycle(window.performance.now());
         });
     }
     
     proto._render = function(){
-        ///@TODO
-        //Render private
+        this._clear();
+        for(let o of this.objects){
+            let r = o._render();
+            this.__arr.position.push(...r.position);
+            this.__arr.color.push(...r.color);
+        }
+        
+        var gl = this.gl;
+        var g = this._gl;
+        gl.uniform2f(g.a.uniforms.resolution, gl.canvas.width, gl.canvas.height);
+        g.render();
+    }
+    
+    proto._clear = function(){
+        this.__arr.position.splice(0);
+        this.__arr.color.splice(0);
     }
     
     proto._startAnimation = function(){
@@ -318,12 +365,12 @@
     }
     
     proto._removeObject = function(obj){
-        let io = this._objects.indexOf(obj);
+        let io = this.objects.indexOf(obj);
         let it = this._objectsTopSorted.indexOf(obj);
         let il = this._objectsLeftSorted.indexOf(obj);
         let ir = this._objectsRightSorted.indexOf(obj);
         let ib = this._objectsBottomSorted.indexOf(obj);
-        this._objects.splice(io,1);
+        this.objects.splice(io,1);
         this._objectsTopSorted.splice(it,1);
         this._objectsLeftSorted.splice(il,1);
         this._objectsRightSorted.splice(ir,1);
@@ -334,10 +381,10 @@
 
         this.objects.push(obj);
         
-        let it = this.__binarySearch(this._objectsTopSorted, o=>obj.top<o._limits.top);
-        let il = this.__binarySearch(this._objectsLeftSorted, o=>obj.left<o._limits.left);
-        let ir = this.__binarySearch(this._objectsRightSorted, o=>obj.right<o._limits.right);
-        let ib = this.__binarySearch(this._objectsBottomSorted, o=>obj.bottom<o._limits.bottom);
+        let it = this.__binarySearch(this._objectsTopSorted, o=>obj.top<o._limit.top);
+        let il = this.__binarySearch(this._objectsLeftSorted, o=>obj.left<o._limit.left);
+        let ir = this.__binarySearch(this._objectsRightSorted, o=>obj.right<o._limit.right);
+        let ib = this.__binarySearch(this._objectsBottomSorted, o=>obj.bottom<o._limit.bottom);
         
         this._objectsTopSorted.splice(it,0,obj);
         this._objectsLeftSorted.splice(il,0,obj);
@@ -346,10 +393,68 @@
         
     }
     
+    
+    proto._initGL = function(){
+        this._canvas = createCanvas();
+        this._setCanvasSize();
+		this.gl = this._canvas.getContext('experimental-webgl');
+		var attrs = [
+			{name: 'position', size: 2, type: this.gl.DYNAMIC_DRAW, arr: this.__arr.position, attr:'a_position'},
+			{name: 'color', size: 4, type: this.gl.DYNAMIC_DRAW, arr: this.__arr.color, attr:'a_color'}
+		];
+		var unifs = [
+			{name: 'resolution', attr:'u_resolution'}
+		]
+		this._defineShaders();
+		var opts = {
+			vs: this.__vs,
+			fs: this.__fs,
+			attributes: attrs,
+			uniforms: unifs
+		};
+		var g = new GL(this.gl, opts);
+		this._gl = g;
+	}
+
+	proto._defineShaders = function(){
+		this.__vs = 
+			'attribute vec2 a_position;'+
+			'attribute vec4 a_color;'+
+			'uniform vec2 u_resolution;'+
+			'varying vec4 v_color;'+
+			'varying vec2 v_position;'+
+			'void main(){'+
+				'vec2 position;'+
+				'vec2 tpos = a_position;'+
+				'position = (tpos/u_resolution)*2.0-1.0;'+
+				'/*position = tpos;*/'+
+				'v_position = position;'+
+				'v_color = a_color;'+
+				'gl_Position = vec4(position,0,1);'+
+			'}';
+		this.__fs = 
+			'precision mediump float;'+
+			'varying vec4 v_color;'+
+			'varying vec2 v_position;'+
+			'void main(){'+
+				'vec4 color = v_color;'+
+				'gl_FragColor = color;'+
+			'}';
+			
+	}
+    
+    proto._setCanvasSize = function(){
+        this._canvas.width = this.width;
+        this._canvas.height = this.height;
+    }
+    
+    
     proto.__binarySearch = function(arr,cb){
         let mn = 0;
-        let mx = this.objects.length;
+        let mx = arr.length;
         let md;
+        if(!arr.length)
+            return 0;
         while(mn < mx){
             md = Math.floor((mn+mx)/2);
             if(cb(arr[md])){
@@ -367,16 +472,24 @@
     proto.__initAttributes = function(){
         this.super.__initAttributes.call(this);
         this.objects = [];
+        this.gl;
+        this.width;
+        this.height;
         this._objectsIds = {};
         this._objectsTopSorted = [];
         this._objectsLeftSorted = [];
         this._objectsRightSorted = [];
         this._objectsBottomSorted = [];
         this._animation;
+        this.__arr = {position:[],color:[]};
+        this.__vs;
+        this.__fs;
         this.__gidinc = 0;
     }
     
     proto.__setDefaults = function(){
+        this.width = 800;
+        this.height = 600;
         //Link General Object to P attribute;
         this.Object.prototype.P = this;
         this.__evnames.tick = 'tick';
@@ -447,6 +560,11 @@
         /**
          *
          */
+        this._render;
+        
+        /**
+         *
+         */
         this._updatePoints;
         
         /**
@@ -475,27 +593,30 @@
     oProto.move = function(x,y){
         this.pos.x = x;
         this.pos.y = y;
-        let ev = {pos: this.pos, obj:this, ev:this.__evnames.move};
-        this._triggerEvent(ev);
+        let ev = {pos: this.pos, obj:this, ev:this.__evnames.move, type:'move'};
+        this._triggerEvent(this.__evnames.move, ev);
         this._updatePoints();
     }
     
     oProto.rotate = function(r){
         this.pos.r = r;
-        let ev = {pos: this.pos, obj:this, ev:this.__evnames.move};
-        this._triggerEvent(ev);
+        let ev = {pos: this.pos, obj:this, ev:this.__evnames.move, type:'rotate'};
+        this._triggerEvent(this.__evnames.move, ev);
         this._updatePoints();
     }
     
     oProto.scale = function(x,y){
-        ///@TODO
-        //Later
+        this.pos.sx = x;
+        this.pos.sy = y;
+        let ev = {pos: this.pos, obj:this, ev:this.__evnames.move, type:'scale'};
+        this._triggerEvent(this.__evnames.move, ev);
+        this._updatePoints();
     }
     
     oProto.transform = function(x,y,r,sx,sy){
         this.setTransform(x,y,r,sx,sy);
-        let ev = {pos: this.pos, obj:this, ev:this.__evnames.move};
-        this._triggerEvent(ev);
+        let ev = {pos: this.pos, obj:this, ev:this.__evnames.move, type:'transform'};
+        this._triggerEvent(this.__evnames.move, ev);
         this._updatePoints();
     }
     
@@ -518,8 +639,11 @@
             this._showError(this.__errors.insert_bad_object);
         }
         
+        obj.P = this;
         this.points.splice(ind,0,obj);
         this._recalculateLimits();
+        
+        obj.update();
         
     }
     
@@ -540,6 +664,28 @@
         this.pos.x = x;
         this.pos.y = y;
         this.pos.r = r;
+    }
+    
+    oProto._render = function(){
+        let fp,sp;
+        let rt = {position: [], color: []};
+        for(let i of this.points){
+            for(let j of i._vertices()){
+                if(!fp){
+                    fp = j;
+                    continue;
+                }
+                if(!sp){
+                    sp = j;
+                    continue;
+                }
+                rt.position.push(fp.position.x,fp.position.y, sp.position.x,sp.position.y, j.position.x,j.position.y);
+                rt.color.push(fp.color[0],fp.color[1],fp.color[2],fp.color[3], sp.color[0],sp.color[1],sp.color[2],sp.color[3], j.color[0],j.color[1],j.color[2],j.color[3]);
+                
+                sp = j;
+            }
+        }
+        return rt;
     }
     
     oProto._updatePoints = function(){
@@ -567,7 +713,7 @@
     oProto.__initAttributes = function(){
         this.super.__initAttributes.call(this);
         this.points = [];
-        this.pos = {x:0,y:0,r:0};
+        this.pos = {x:0,y:0,r:0,sx:1,sy:1};
         this._collision = {};
         this._force = {x:0,y:0,r:0};
         this._limit = {left:0,right:0,top:0,bottom:0};
@@ -649,6 +795,10 @@
          */
         this.bottom;
         
+        /**
+         *
+         */
+        this.local;
         
         
         /**
@@ -660,6 +810,11 @@
          *
          */
         this._updateLocals;
+        
+        /**
+         *
+         */
+        this._vertices;
         
         /** @brief Convert arguments position to object;
          *
@@ -697,6 +852,7 @@
         ////////////////////
         
         this.super.constructor.call(this, options);
+        
     }
     inherit(Point, Basic);
     var pProto = Point.prototype;
@@ -720,6 +876,8 @@
     }
     
     pProto.update = function(){
+        if(!this.P)
+            return;
         this._set(this._pointPos(this.P.pos));
     }
     
@@ -746,6 +904,10 @@
         return this.pos.y;
     }
     
+    pProto.local = function(x,y){
+        this._setLocals({x,y});
+    }
+    
     pProto._set = function(pos){
         let cp = this.pos;
         cp.x = pos.x;
@@ -753,10 +915,15 @@
     }
     
     pProto._updateLocals = function(){
+        var pos = this.P.pos;
         let c = Math.cos(-pos.r);
         let s = Math.sin(-pos.r);
         this._pos.x = this.pos.x * c;
         this._pos.y = this.pos.y * s;
+    }
+    
+    pProto._vertices = function(){
+        return [{position:this.pos, color:this.color}];
     }
     
     pProto._setLocals = function(pos){
@@ -769,8 +936,8 @@
         let c = Math.cos(pos.r);
         let s = Math.sin(pos.r);
         let obj = {};
-        obj.x = this._pos.x * c + pos.x;
-        obj.y = this._pos.y * s + pos.y;
+        obj.x = this._pos.x * c * pos.sx - this._pos.y * s * pos.sx + pos.x;
+        obj.y = this._pos.x * s * pos.sy + this._pos.y * c * pos.sy + pos.y;
         return obj;
     }
     
@@ -791,15 +958,17 @@
     pProto.__setDefaults = function(){
         var pos = this.pos;
         var _pos = this._pos;
-        pos.x = pos.y = _pos.x = _pos.xy = null;
+        pos.x = pos.y = _pos.x = _pos.y = null;
         this.__evnames.move = 'move';
         this.__evnames.tick = 'tick';
+        this.color.push(0,0,0,1);
     }
     
     pProto.__initAttributes = function(){
         this.super.__initAttributes.call(this);
         this.pos = {};
         this._pos = {};
+        this.color = [];
     }
     
     
@@ -820,11 +989,150 @@
     
     
     
+    
+    
+    function GL(gl, options){
+		this.options = options;
+		this.gl = gl;
+		this.init();
+	}
+
+	var gProto = GL.prototype;
+
+	// Init
+	gProto.init = function(){
+		this.initProgram();
+	}
+
+	// Init Program
+	gProto.initProgram = function(){
+		var gl = this.gl;
+		var vertexShaderSource = this.options.vs;
+		var fragmentShaderSource = this.options.fs;
+		var vertexShader = this.createShader(gl.VERTEX_SHADER, vertexShaderSource);
+		var fragmentShader = this.createShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+		var program = this.createProgram(vertexShader, fragmentShader);
+		gl.useProgram(program);
+		this.a = {
+			attributes:{},
+			uniforms:{}
+		};
+		for(let i=0;i<this.options.attributes.length;i++){
+			let a = this.options.attributes[i];
+			this.a.attributes[a.name] = {
+				attr: gl.getAttribLocation(program, a.attr),
+				size: a.size,
+				buffer: gl.createBuffer(),
+				type: a.type,
+				arr: a.arr
+			};
+		}
+		for(let i=0;i<this.options.uniforms.length;i++){
+			let a = this.options.uniforms[i];
+			this.a.uniforms[a.name] = gl.getUniformLocation(program, a.attr);
+		}
+		this._program = program;
+	}
+
+	// Create Shader
+	gProto.createShader = function(type, source){
+		var shader = this.gl.createShader(type);
+		this.gl.shaderSource(shader, source);
+		this.gl.compileShader(shader);
+		var success = this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS);
+		if (success) {
+			return shader;
+		}
+		console.log(this.gl.getShaderInfoLog(shader));
+		this.gl.deleteShader(shader);
+	}
+	// Create Program
+	gProto.createProgram = function(vertexShader, fragmentShader) {
+		var program = this.gl.createProgram();
+		this.gl.attachShader(program, vertexShader);
+		this.gl.attachShader(program, fragmentShader);
+		this.gl.linkProgram(program);
+		var success = this.gl.getProgramParameter(program, this.gl.LINK_STATUS);
+			if (success) {
+			return program;
+		}
+		console.log(this.gl.getProgramInfoLog(program));
+		this.gl.deleteProgram(program);
+	}
+	// Enable Buffer
+	gProto.enableBuffer = function(options){
+		var gl = this.gl;
+		gl.enableVertexAttribArray(options.attr);
+		gl.bindBuffer(gl.ARRAY_BUFFER, options.buffer);
+		gl.vertexAttribPointer(
+			options.attr, options.size, options.type || gl.FLOAT, options.normalize || false, options.stride || 0, options.offset || 0);
+	}
+
+	// Buffer Data
+	gProto.buffer = function(options){
+		var gl = this.gl;
+		var b = options.buffer || gl.createBuffer();
+		gl.bindBuffer(gl.ARRAY_BUFFER, b);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(options.arr), options.type);
+		return b;
+	}
+
+	// Clear WebGL
+	gProto.clear = function(){
+		var gl = this.gl;
+		//gl.clear(gl.DEPTH_BUFFER_BIT);
+		gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+		gl.enable(gl.DEPTH_TEST);
+		gl.enable(gl.BLEND);
+		gl.depthFunc(gl.LESS);
+		gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
+		gl.useProgram(this._program);
+		//gl.flush();
+	}
+
+	// Prepare Attributes
+	gProto.prepare = function(){
+		var attrs = this.a.attributes;
+		for(let i in attrs){
+			let a = attrs[i];
+			this.buffer({arr:a.arr, type:a.type, buffer:a.buffer});
+			this.enableBuffer({attr:a.attr, buffer:a.buffer, size:a.size});
+			this._count = a.arr.length/a.size;
+		}
+	}
+
+	// Render
+	gProto.render = function(){
+		this.clear();
+		this.prepare();
+		this.draw();
+	}
+
+	// Draw
+	gProto.draw = function(){
+		var gl = this.gl;
+		var primitiveType = gl.TRIANGLES;
+		var offset = 0;
+		var count = this._count;
+		gl.drawArrays(primitiveType, offset, count);
+	}
+    
+    
+    
+    
+    
+    
+    
     function inherit(fn, fnp){
         fn.prototype = Object.create(fnp.prototype);
         fn.prototype.super = fnp.prototype;
         fn.prototype.constructor = fn;
     }
+    
+    var createCanvas = function(){
+		var c = document.createElement('canvas');
+		return c;
+	}
     
     var ERRORS = {
         101: 'Bad insert object type',
@@ -889,9 +1197,12 @@
 		},
 	};
     
-    if(typeof module != 'undefined' && module.exports)
-        module.exports = Prim;
-    else
-        window.Prim = Prim;
+    export default Prim;
+    //if(typeof module != 'undefined' && module.exports)
+    //    module.exports = Prim;
+    //else if(typeof export != 'undefined')
+    //    export {Prim};
+    //else
+    //    window.Prim = Prim;
 
-})();
+//})();

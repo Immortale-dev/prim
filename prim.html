@@ -1,4 +1,5 @@
 
+
 <style>
 body, html{
     margin: 0;
@@ -15,11 +16,50 @@ body, html{
     
 </div>
 
+<button>woohoo</button>
 
-<script src="./script.js"></script>
 
-<script>
+<!--<script src="./script.js"></script>-->
+
+<script type="module">
+
+    import Prim from '/mods/prim.js'
     
+    //Primitive
     var prim = new Prim();
+    
+    //Create Object
+    var obj = new prim.Object();
+    
+    //Create Points
+    var p1 = new prim.Point();
+    p1.local(0,0);
+    
+    var p2 = new prim.Point();
+    p2.local(100,0);
+    
+    var p3 = new prim.Point();
+    p3.local(0,150);
+    
+    var p4 = new prim.Point();
+    p4.local(80,80);
+    
+    //Insert Points to Object
+    obj.insert(p1);
+    obj.insert(p2);
+    obj.insert(p4);
+    obj.insert(p3);
+    
+    //Insert Object to Workflow
+    prim.insert(obj);
+    
+    //Move Object
+    obj.move(100,100);
+    
+    //Insert Canvas To DOM
+    document.querySelector('#c').appendChild(prim._canvas);
+    
+    //START Animation
+    prim.start();
     
 </script>
