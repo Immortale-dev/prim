@@ -53,6 +53,15 @@ function Prim(options){
      */
     this.resize;
     
+    /** @brief @abstract check objects for collisions 
+     *         and call events
+     *  
+     *  Check objects for collisions. Needs to be implemented;
+     *
+     *  @return undefined;
+     */
+    this.collide;
+    
     /**
      *
      */
@@ -173,6 +182,10 @@ proto.resize = function(width,height){
 
 proto._cycle = function(tm){
     this.tick();
+    
+    /// @Abstract
+    this.collide && this.collide();
+    
     this._render();
     this.__time = tm;
     this._animation = requestAnimationFrame(()=>{
@@ -275,7 +288,6 @@ proto._defineShaders = function(){
             'vec2 position;'+
             'vec2 tpos = a_position;'+
             'position = (tpos/u_resolution)*2.0-1.0;'+
-            '/*position = tpos;*/'+
             'v_position = position;'+
             'v_color = a_color;'+
             'gl_Position = vec4(position,0,1);'+

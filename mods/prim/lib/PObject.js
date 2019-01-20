@@ -70,6 +70,16 @@ function PObject(options){
     /**
      *
      */
+    this._iterableRender;
+    
+    /**
+     *
+     */
+    this._iterableCalc;
+    
+    /**
+     *
+     */
     this._updatePoints;
     
     /**
@@ -174,23 +184,56 @@ oProto.setTransform = function(x,y,r,sx,sy){
 oProto._render = function(){
     let fp,sp;
     let rt = {position: [], color: []};
-    for(let i of this.points){
-        for(let j of i._vertices()){
-            if(!fp){
-                fp = j;
-                continue;
-            }
-            if(!sp){
-                sp = j;
-                continue;
-            }
-            rt.position.push(fp.position.x,fp.position.y, sp.position.x,sp.position.y, j.position.x,j.position.y);
-            rt.color.push(fp.color[0],fp.color[1],fp.color[2],fp.color[3], sp.color[0],sp.color[1],sp.color[2],sp.color[3], j.color[0],j.color[1],j.color[2],j.color[3]);
-            
-            sp = j;
+    let arr = this._iterableRender();
+    for(let j of arr){
+        if(!fp){
+            fp = j;
+            continue;
         }
+        if(!sp){
+            sp = j;
+            continue;
+        }
+        rt.position.push(fp.position.x,fp.position.y, sp.position.x,sp.position.y, j.position.x,j.position.y);
+        rt.color.push(fp.color[0],fp.color[1],fp.color[2],fp.color[3], sp.color[0],sp.color[1],sp.color[2],sp.color[3], j.color[0],j.color[1],j.color[2],j.color[3]);
+        
+        sp = j;
     }
     return rt;
+    //for(let i of this.points){
+    //    for(let j of i._vertices()){
+    //        if(!fp){
+    //            fp = j;
+    //            continue;
+    //        }
+    //        if(!sp){
+    //            sp = j;
+    //            continue;
+    //        }
+    //        rt.position.push(fp.position.x,fp.position.y, sp.position.x,sp.position.y, j.position.x,j.position.y);
+    //        rt.color.push(fp.color[0],fp.color[1],fp.color[2],fp.color[3], sp.color[0],sp.color[1],sp.color[2],sp.color[3], j.color[0],j.color[1],j.color[2],j.color[3]);
+    //        
+    //        sp = j;
+    //    }
+    //}
+    //return rt;
+}
+
+oProto._iterableRender = function(){
+    let arr = [];
+    let ind = 0;
+    for(let i of this.points){
+        for(let j of i._vertices(ind,i,false)){
+            arr.push(j);
+            ind++;
+        }
+    }
+    return arr;
+}
+
+oProto._iterableCalc = function(){
+    return this._iterableRender();
+    ///@TODO
 }
 
 oProto._updatePoints = function(){

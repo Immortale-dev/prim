@@ -75,6 +75,11 @@ function PPoint(options){
     /**
      *
      */
+    this._tickEvent;
+    
+    /**
+     *
+     */
     this._set;
     
     /**
@@ -154,7 +159,7 @@ pProto.update = function(){
 
 pProto.tick = function(){
     
-    let ev = {point: this, ev:this.__evnames.tick};
+    let ev = this._tickEvent();
     this._triggerEvent(this.__evnames.tick, ev);
     
 }
@@ -177,6 +182,11 @@ pProto.bottom = function(){
 
 pProto.local = function(x,y){
     this._setLocals({x,y});
+    this.update();
+}
+
+pProto._tickEvent = function(){
+    return {point: this, ev:this.__evnames.tick};
 }
 
 pProto._set = function(pos){
@@ -193,14 +203,13 @@ pProto._updateLocals = function(){
     this._pos.y = this.pos.y * s;
 }
 
-pProto._vertices = function(){
+pProto._vertices = function(i, arr, optimize){
     return [{position:this.pos, color:this.color}];
 }
 
 pProto._setLocals = function(pos){
     for(let i in pos)
         this._pos[i] = pos[i];
-    this.update();
 }
 
 pProto._pointPos = function(pos){
