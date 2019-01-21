@@ -50,9 +50,14 @@ function PBezierPoint(options){
     /**
      *
      */
+    this.calcBezier;
+    
+    /** @override;
+     *
+     */
     this._vertices;
     
-    /**
+    /** 
      *
      */
     this._bezierPos;
@@ -61,6 +66,11 @@ function PBezierPoint(options){
      *
      */
     this._calcBezierCurve;
+    
+    /**
+     *
+     */
+    this._calcBezierPoint;
     
     /**
      *
@@ -102,6 +112,10 @@ pProto.removeBezier = function(){
     ///@TODO;
 }
 
+pProto.getBezierCalc = function(){
+    ///@TODO;
+}
+
 pProto.set = function(x,y,bz){
     this.setBezie(bz);
     this.super.set.call(this,x,y);
@@ -117,6 +131,10 @@ pProto._bezierPos = function(){
 }
 
 pProto._calcBezierCurve = function(){
+    ///@TODO;
+}
+
+pProto._calcBezierPoint = function(){
     ///@TODO;
 }
 

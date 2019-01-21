@@ -11,6 +11,7 @@ import PObject from './PObject.js'
 import GL from './GL.js';
 import ERRORS from '../helpers/errors.js';
 import {inherit, createCanvas} from '../helpers/helpers.js';
+import PT from '../helpers/PT.js';
 
 /** @class Prim extends Basic
  *  
@@ -139,6 +140,9 @@ function Prim(options){
     this._initGL();
 }
 inherit(Prim, Basic);
+
+///@static
+Prim.PT = PT;
 
 var proto = Prim.prototype;
 
